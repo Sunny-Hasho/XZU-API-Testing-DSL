@@ -142,9 +142,9 @@ parser code {:
  * ============================================================================ */
 terminal CONFIG, BASE_URL, HEADER, LET, TEST;
 terminal GET, POST, PUT, DELETE;
-terminal EXPECT, STATUS, BODY, CONTAINS;
-terminal EQUALS, SEMICOLON, LBRACE, RBRACE;
-terminal String IDENTIFIER, STRING;
+terminal EXPECT, STATUS, BODY, CONTAINS, IN;
+terminal EQUALS, SEMICOLON, LBRACE, RBRACE, RANGE;
+terminal String IDENTIFIER, STRING, MULTILINE_STRING;
 terminal Integer NUMBER;
 
 /* ============================================================================
@@ -337,6 +337,7 @@ request_items ::=
 request_item ::= 
     header_decl:h {: RESULT = h; :} 
     | BODY EQUALS STRING:s SEMICOLON {: RESULT = s; :}
+    | BODY EQUALS MULTILINE_STRING:s SEMICOLON {: RESULT = s; :}
     | BODY EQUALS NUMBER:n SEMICOLON
     {:
         System.err.println("ERROR Line " + nleft + ": Expected STRING after 'body ='\n   -> Body must be a string, not a number\n   -> Found: " + n + "\n   -> Fix: body = \"" + n + "\";");
@@ -350,6 +351,8 @@ request_item ::=
 assertion ::=
     EXPECT STATUS EQUALS NUMBER:code SEMICOLON 
     {: RESULT = new AssertionNode(AssertionNode.AssertionType.STATUS, code); :}
+    | EXPECT STATUS IN NUMBER:min RANGE NUMBER:max SEMICOLON 
+    {: RESULT = new AssertionNode(AssertionNode.AssertionType.STATUS_RANGE, min, max); :}
     | EXPECT STATUS EQUALS STRING:code SEMICOLON
     {:
         System.err.println("ERROR Line " + codeleft + ": Expected NUMBER for status\n   -> Status must be an integer, not a string\n   -> Found: \"" + code + "\"\n   -> Fix: expect status = " + code + ";");

@@ -1,0 +1,43 @@
+// XZU Multiline String Demo
+// Tests triple-quoted multiline strings
+
+config {
+  base_url = "http://localhost:8080";
+  header "Content-Type" = "application/json";
+}
+
+let userId = 42;
+
+
+// Test 1: Login with multiline body
+test LoginWithMultiline {
+  POST "/api/login" {
+    body = """
+    {
+      "username": "admin",
+      "password": "1234"
+    }
+    """;
+  }
+  expect status = 200;
+  expect header "Content-Type" contains "json";
+  expect body contains "\"token\":";
+}
+
+// Test 2: Update User Role with multiline body
+test UpdateUser {
+  PUT "/api/users/$userId" {
+    body = """
+    {
+      "role": "ADMIN",
+      "updated": true
+    }
+    """;
+  }
+  expect status = 200;
+  expect header "Content-Type" contains "json";
+  expect body contains "\"updated\":true";
+}
+
+
+

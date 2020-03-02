@@ -1,0 +1,46 @@
+// XZU Bonus Features Demo
+// Demonstrates triple-quoted multiline strings and range status checks
+
+config {
+  base_url = "http://localhost:8080";
+  header "Content-Type" = "application/json";
+}
+
+let userId = 42;
+
+// Bonus Feature 1: Multiline strings
+test LoginWithMultiline {
+  POST "/api/login" {
+    body = """
+    {
+      "username": "admin",
+      "password": "1234"
+    }
+    """;
+  }
+  expect status = 200;
+  expect header "Content-Type" contains "json";
+  expect body contains "\"token\":";
+}
+
+// Bonus Feature 2: Range status check
+test GetUserWithRange {
+  GET "/api/users/$userId";
+  expect status in 200..299;  // Any 2xx success
+  expect body contains "\"id\":42";
+  expect body contains "\"username\":";
+}
+
+// Test 3: Update with multiline
+test UpdateUser {
+  PUT "/api/users/$userId" {
+    body = """
+    {
+      "role": "ADMIN",
+      "updated": true
+    }
+    """;
+  }
+  expect status = 200;
+  expect body contains "\"updated\":";
+}

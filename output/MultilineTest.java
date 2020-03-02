@@ -20,6 +20,35 @@ public class GeneratedTests {
     }
 
     @Test
+    void test_CreateUserWithMultiline() throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/users"))
+            .timeout(Duration.ofSeconds(10))
+            .POST(HttpRequest.BodyPublishers.ofString("\r\n    {\r\n      \"id\": 42,\r\n      \"name\": \"John Doe\",\r\n      \"email\": \"john@example.com\",\r\n      \"role\": \"ADMIN\",\r\n      \"address\": {\r\n        \"street\": \"123 Main St\",\r\n        \"city\": \"New York\",\r\n        \"zip\": \"10001\"\r\n      },\r\n      \"preferences\": {\r\n        \"notifications\": true,\r\n        \"theme\": \"dark\"\r\n      }\r\n    }\r\n    ", StandardCharsets.UTF_8));
+        for (var e : DEFAULT_HEADERS.entrySet()) {
+            b.header(e.getKey(), e.getValue());
+        }
+        HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+        assertEquals(200, resp.statusCode());
+        assertTrue(resp.body().contains("\"id\":42"));
+        assertTrue(resp.body().contains("\"name\":\"John Doe\""));
+    }
+
+    @Test
+    void test_CreateUserRegular() throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/users"))
+            .timeout(Duration.ofSeconds(10))
+            .POST(HttpRequest.BodyPublishers.ofString("{ \"name\": \"Jane Doe\", \"email\": \"jane@example.com\" }", StandardCharsets.UTF_8));
+        for (var e : DEFAULT_HEADERS.entrySet()) {
+            b.header(e.getKey(), e.getValue());
+        }
+        HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+        assertEquals(200, resp.statusCode());
+        assertTrue(resp.body().contains("\"name\":\"Jane Doe\""));
+    }
+
+    @Test
     void test_LoginWithMultiline() throws Exception {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/login"))
             .timeout(Duration.ofSeconds(10))
@@ -35,7 +64,7 @@ public class GeneratedTests {
     }
 
     @Test
-    void test_GetUserWithRange() throws Exception {
+    void test_GetUserById() throws Exception {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/users/42"))
             .timeout(Duration.ofSeconds(10))
             .GET();
@@ -60,7 +89,22 @@ public class GeneratedTests {
         HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
         assertEquals(200, resp.statusCode());
-        assertTrue(resp.body().contains("\"updated\":"));
+        assertTrue(resp.headers().firstValue("Content-Type").orElse("").contains("json"));
+        assertTrue(resp.body().contains("\"updated\":true"));
+    }
+
+    @Test
+    void test_DeleteUser() throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/users/999"))
+            .timeout(Duration.ofSeconds(10))
+            .DELETE();
+        for (var e : DEFAULT_HEADERS.entrySet()) {
+            b.header(e.getKey(), e.getValue());
+        }
+        HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+        assertEquals(200, resp.statusCode());
+        assertTrue(resp.body().contains("\"deleted\":"));
     }
 
 }

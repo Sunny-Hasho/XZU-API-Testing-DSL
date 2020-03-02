@@ -7,6 +7,7 @@ package ast;
 public class AssertionNode extends ASTNode {
     public enum AssertionType {
         STATUS,           // expect status = 200
+        STATUS_RANGE,     // expect status in 200..299
         HEADER_EQUALS,    // expect header "K" = "V"
         HEADER_CONTAINS,  // expect header "K" contains "V"
         BODY_CONTAINS     // expect body contains "text"
@@ -15,6 +16,7 @@ public class AssertionNode extends ASTNode {
     private AssertionType type;
     private String headerKey;  // For header assertions
     private String expectedValue; // String or Integer as string
+    private int minStatus, maxStatus; // For range assertions
     
     // For status assertions
     public AssertionNode(AssertionType type, int statusCode) {
@@ -35,6 +37,13 @@ public class AssertionNode extends ASTNode {
         this.expectedValue = expectedValue;
     }
     
+    // For status range assertions
+    public AssertionNode(AssertionType type, int minStatus, int maxStatus) {
+        this.type = type;
+        this.minStatus = minStatus;
+        this.maxStatus = maxStatus;
+    }
+    
     public AssertionType getType() {
         return type;
     }
@@ -51,11 +60,21 @@ public class AssertionNode extends ASTNode {
         return Integer.parseInt(expectedValue);
     }
     
+    public int getMinStatus() {
+        return minStatus;
+    }
+    
+    public int getMaxStatus() {
+        return maxStatus;
+    }
+    
     @Override
     public String toString() {
         switch (type) {
             case STATUS:
                 return String.format("AssertStatus(%s)", expectedValue);
+            case STATUS_RANGE:
+                return String.format("AssertStatusRange(%d..%d)", minStatus, maxStatus);
             case HEADER_EQUALS:
                 return String.format("AssertHeaderEquals(%s = %s)", headerKey, expectedValue);
             case HEADER_CONTAINS:

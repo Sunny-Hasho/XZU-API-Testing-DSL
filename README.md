@@ -97,7 +97,7 @@ test LoginTest {
 
 ### **4. Generate JUnit Tests**
 ```cmd
-scripts\3-compile-test.bat my-test.test output\GeneratedTests.java
+scripts\3-compile-test.bat test\my-test.test output\GeneratedTests.java
 ```
 
 ### **5. Start XZU Backend**
@@ -173,12 +173,23 @@ POST "/api/login" {
 PUT "/api/users/$userId" {
   body = "{ \"role\": \"ADMIN\" }";
 }
+
+// Multiline strings (BONUS FEATURE)
+POST "/api/users" {
+  body = """
+  {
+    "name": "John Doe",
+    "email": "john@example.com"
+  }
+  """;
+}
 ```
 *Note: No semicolons required after POST/PUT blocks*
 
 ### **✅ Assertions**
 ```testlang
 expect status = 200;
+expect status in 200..299;  // Range check (BONUS FEATURE)
 expect header "Content-Type" = "application/json";
 expect header "Content-Type" contains "json";
 expect body contains "\"success\": true";
@@ -291,6 +302,39 @@ test AuthenticatedRequest {
   GET "/api/protected";
   // Authorization header automatically added
 }
+```
+
+### **🎁 Bonus Features (Optional Extras)**
+
+#### **1. Triple-quoted Multiline Strings**
+```testlang
+// Test 1: Login with multiline body
+test LoginWithMultiline {
+  POST "/api/login" {
+    body = """
+    {
+      "username": "admin",
+      "password": "1234"
+    }
+    """;
+  }
+  expect status = 200;
+  expect header "Content-Type" contains "json";
+  expect body contains "\"token\":";
+}
+```
+
+#### **2. Range Status Checks**
+```testlang
+// Test 2: Range status check - success range (BONUS FEATURE)
+test TestSuccessRange {
+  GET "/api/users/$userId";
+  expect status in 200..299;  // Any 2xx success
+  expect body contains "\"id\":42";
+  expect body contains "\"username\":";
+}
+
+
 ```
 
 ---
@@ -454,13 +498,25 @@ test DeleteUser {
 - ✅ **Backend Integration**: XZU Spring Boot test target
 - ✅ **Error Handling**: Comprehensive validation with improved error messages
 - ✅ **Documentation**: Professional README and guides
-
+- 🎁 **Bonus Features**: Triple-quoted strings + Range status checks (+10 marks)
 
 ### **Technical Excellence**
 - 🏗️ **Clean Architecture**: Modular, maintainable design
 - 🧪 **Comprehensive Testing**: All HTTP methods and assertion types
 - 📚 **Professional Documentation**: Clear, detailed guides
 - 🪟 **Windows Optimization**: Native Windows support
+- 🎁 **Advanced Features**: Optional extras for maximum marks
+
+### **Bonus Features Summary**
+
+XZU implements **BOTH** optional bonus features from the assignment:
+
+| **Feature** | **Status** |
+|-------------|------------|
+| Triple-quoted multiline strings | ✅ Implemented |
+| Range status checks (expect status in 200..299) | ✅ Implemented |
+| **Total Bonus** | **Complete** |
+
 
 
 ---

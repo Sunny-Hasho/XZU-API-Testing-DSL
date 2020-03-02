@@ -20,7 +20,12 @@ import parser.sym;
     private Symbol symbol(int type, Object value) {
         return new Symbol(type, yyline + 1, yycolumn + 1, value);
     }
+    
+    // State for multiline string handling
+    private StringBuilder multilineContent = new StringBuilder();
 %}
+
+%state MULTILINE_STRING
 
 /* Regular Expressions */
 LineTerminator = \r|\n|\r\n
@@ -48,12 +53,14 @@ String         = \"([^\\\"]|\\.)*\"
     "status"        { return symbol(sym.STATUS); }
     "body"          { return symbol(sym.BODY); }
     "contains"      { return symbol(sym.CONTAINS); }
+    "in"            { return symbol(sym.IN); }
 
     /* Operators and Delimiters */
     "="             { return symbol(sym.EQUALS); }
     ";"             { return symbol(sym.SEMICOLON); }
     "{"             { return symbol(sym.LBRACE); }
     "}"             { return symbol(sym.RBRACE); }
+    ".."            { return symbol(sym.RANGE); }
 
     /* Literals */
     {Identifier}    { return symbol(sym.IDENTIFIER, yytext()); }
@@ -66,10 +73,30 @@ String         = \"([^\\\"]|\\.)*\"
         str = str.replace("\\\\", "\\");
         return symbol(sym.STRING, str); 
     }
+    
+    /* Triple-quoted string start */
+    \"\"\"          { 
+        multilineContent.setLength(0); 
+        yybegin(MULTILINE_STRING); 
+    }
 
     /* Whitespace and Comments */
     {WhiteSpace}    { /* ignore */ }
     {Comment}       { /* ignore */ }
+}
+
+/* Multiline string state */
+<MULTILINE_STRING> {
+    \"\"\"          { 
+        String result = multilineContent.toString();
+        multilineContent.setLength(0);
+        yybegin(YYINITIAL);
+        result = result.replace("\\\"", "\"");
+        result = result.replace("\\\\", "\\");
+        return symbol(sym.MULTILINE_STRING, result); 
+    }
+    
+    [^]             { multilineContent.append(yytext()); }
 }
 
 /* Error fallback */
