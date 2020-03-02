@@ -1,0 +1,14 @@
+// XZU - Complete Test Suite
+// All tests in one file as per assignment spec
+
+config {
+  base_url = "http://localhost:8080";
+  header "Content-Type" = "application/json";
+  header "X-App" = "XZU";
+}
+
+// Variable declarations (assignment requirement)
+let 2user = "admin";
+let password = "1234";
+let userId = 42;
+let adminRole = "ADMIN";
