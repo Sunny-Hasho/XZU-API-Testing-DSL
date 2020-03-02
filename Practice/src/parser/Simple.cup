@@ -1,0 +1,35 @@
+package parser;
+
+import java_cup.runtime.Symbol;
+import lexer.SimpleLexer;
+
+parser code {:
+  public static void main(String[] args) throws Exception {
+    SimpleLexer lexer = new SimpleLexer(new java.io.FileReader("input.txt"));
+    parser p = new parser(lexer);
+    p.parse();
+  }
+:};
+
+/* ------------ Terminals ------------ */
+terminal EQUALS, PLUS, MINUS, UNKNOWN;
+terminal String IDENTIFIER, NUMBER;
+
+/* ------------ Non-terminals (with types!) ------------ */
+non terminal String S;
+non terminal Integer expr;
+
+/* ------------ Grammar ------------ */
+
+/*  Assignment rule  */
+S ::= IDENTIFIER:e EQUALS expr:x
+     {: System.out.println(e + " = " + x); :};
+
+/*  Expression rules  */
+expr ::=
+      NUMBER:n
+        {: RESULT = Integer.parseInt(n); :}
+    | expr:x PLUS NUMBER:n
+        {: RESULT = x + Integer.parseInt(n); :}
+    | expr:x MINUS NUMBER:n
+        {: RESULT = x - Integer.parseInt(n); :};
