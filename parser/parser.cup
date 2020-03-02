@@ -1,0 +1,368 @@
+package parser;
+
+import java_cup.runtime.*;
+import ast.*;
+import java.util.*;
+
+/* ============================================================================
+ * XZU Parser - Clean & Organized Version
+ * ============================================================================ */
+
+/* ============================================================================
+ * SECTION 1: ERROR HANDLING & UTILITIES
+ * ============================================================================ */
+parser code {:
+    // Error tracking constants
+    private int errorCount = 0;
+    private static final int MAX_ERRORS = 10;
+    private static final String ERROR_BORDER = "=".repeat(50);
+    private static final String ERROR_TITLE = "*** XZU SYNTAX ERROR ***";
+    private static final String FATAL_ERROR_TITLE = "*** FATAL ERROR: Too many syntax errors ***";
+    private static final String UNRECOVERABLE_ERROR_TITLE = "*** FATAL ERROR: Cannot recover from syntax errors ***";
+
+    public void syntax_error(Symbol cur_token) {
+        if (++errorCount > MAX_ERRORS) {
+            System.err.println(FATAL_ERROR_TITLE);
+            System.err.println("Too many syntax errors encountered. Stopping compilation.");
+            return;
+        }
+        
+        printErrorHeader(cur_token);
+        printErrorDetails(cur_token);
+        printQuickFixGuide();
+    }
+    
+    private void printErrorHeader(Symbol token) {
+        int line = token.left >= 0 ? token.left : -1;
+        System.err.println("\n" + ERROR_BORDER);
+        System.err.println(ERROR_TITLE);
+        System.err.println(ERROR_BORDER);
+        System.err.println("Location: Line " + (line >= 0 ? line : "EOF"));
+    }
+    
+    private void printErrorDetails(Symbol token) {
+        String hint = getDetailedError(token);
+        System.err.println("Problem: " + hint);
+    }
+    
+    private void printQuickFixGuide() {
+        System.err.println("\nQuick Fix Guide:");
+        System.err.println("  - Variable names: start with letter (a-z, A-Z) or underscore (_)");
+        System.err.println("  - Don't forget semicolons (;) after simple statements (GET, DELETE, let, expect)");
+        System.err.println("  - NO semicolons after blocks (config { }, test { }, POST { }, PUT { })");
+        System.err.println("  - Make sure all braces { } are properly closed");
+        System.err.println("  - Check that strings are properly quoted with \"");
+        System.err.println(ERROR_BORDER + "\n");
+    }
+
+    public void report_error(String message, Object info) {
+        // Handled in syntax_error
+    }
+
+    public void report_fatal_error(String message, Object info) throws Exception {
+        System.err.println(FATAL_ERROR_TITLE);
+        throw new Exception("Fatal parse error");
+    }
+    
+    public void unrecovered_syntax_error(Symbol cur_token) throws Exception {
+        System.err.println(UNRECOVERABLE_ERROR_TITLE);
+        throw new Exception("Unrecoverable syntax error");
+    }
+    
+    private String getDetailedError(Symbol token) {
+        if (token == null || token.value == null) {
+            return "Unexpected end of file - missing '}' or ';'?\n   -> Check for missing semicolons after simple statements (GET, DELETE, let, expect)\n   -> NO semicolons after blocks (config { }, test { }, POST { }, PUT { })";
+        }
+        
+        String tokenVal = token.value.toString();
+        
+        // Check token type and provide specific guidance
+        switch (token.sym) {
+            case sym.NUMBER:
+                // Check if this looks like a variable declaration error
+                // If we see a number right after 'let', it's likely a variable name error
+                return "Expected IDENTIFIER after 'let'\n   -> Identifiers cannot start with a digit '" + tokenVal + "'\n   -> Try: let var" + tokenVal + " = ...\n   -> Or: let user" + tokenVal + " = ...";
+                
+            case sym.IDENTIFIER:
+                String id = tokenVal;
+                
+                // Check if identifier starts with digit
+                if (id.matches("^[0-9].*")) {
+                    return "Expected IDENTIFIER after 'let'\n   -> Identifiers cannot start with a digit '" + id + "'\n   -> Try: let var_" + id + " = ...";
+                }
+                
+                // Check for missing expect keyword
+                if ("status".equals(id)) {
+                    return "Missing 'expect' keyword before 'status'\n   -> Try: expect status = 200;";
+                }
+                if ("body".equals(id)) {
+                    return "Missing 'expect' keyword before 'body'\n   -> Try: expect body contains \"text\";";
+                }
+                if ("header".equals(id)) {
+                    return "Missing 'expect' keyword before 'header'\n   -> Try: expect header \"Key\" = \"value\";";
+                }
+                
+                return "Unexpected identifier '" + id + "'\n   -> Check for missing semicolon or keyword";
+                
+            case sym.STRING:
+                return "Expected STRING after '='\n   -> Strings must be part of a valid statement\n   -> Try: GET " + tokenVal + "; or let x = " + tokenVal + ";";
+                
+            case sym.SEMICOLON:
+                return "Unexpected semicolon after block\n   -> NO semicolons after blocks (config { }, test { }, POST { }, PUT { })\n   -> Remove the semicolon after the closing brace '}'";
+                
+            case sym.LBRACE:
+                return "Unexpected '{'\n   -> Must follow: config, test Name, or POST/PUT path\n   -> Example: test MyTest { ... }";
+                
+            case sym.RBRACE:
+                return "Unexpected '}'\n   -> Check for missing semicolons inside the block";
+                
+            case sym.EQUALS:
+                return "Unexpected '='\n   -> Must follow: let name, base_url, body, header \"key\"\n   -> Example: let x = \"value\";";
+                
+            case sym.STATUS:
+                return "Expected 'expect' before 'status'\n   -> Try: expect status = 200;";
+                
+            case sym.BODY:
+                return "Missing 'expect' or '=' before 'body'\n   -> Request: body = \"...\";  OR  Assertion: expect body contains \"...\";";
+                
+            case sym.HEADER:
+                return "Expected STRING after 'header'\n   -> Format: header \"Content-Type\" = \"application/json\";";
+                
+            case sym.CONTAINS:
+                return "Missing 'expect' before 'contains'\n   -> Try: expect body contains \"text\";";
+                
+            default:
+                return "Unexpected token '" + tokenVal + "'\n   -> Check syntax near this location";
+        }
+    }
+:};
+
+/* ============================================================================
+ * SECTION 2: TERMINAL SYMBOLS
+ * ============================================================================ */
+terminal CONFIG, BASE_URL, HEADER, LET, TEST;
+terminal GET, POST, PUT, DELETE;
+terminal EXPECT, STATUS, BODY, CONTAINS;
+terminal EQUALS, SEMICOLON, LBRACE, RBRACE;
+terminal String IDENTIFIER, STRING;
+terminal Integer NUMBER;
+
+/* ============================================================================
+ * SECTION 3: NON-TERMINAL SYMBOLS
+ * ============================================================================ */
+non terminal ProgramNode program;
+non terminal ConfigNode config_opt;
+non terminal List config_items, variables, tests, test_statements, request_items, request_block_opt;
+non terminal VariableNode variable;
+non terminal Object value, test_statement, request_item;
+non terminal TestNode test_block;
+non terminal RequestNode request;
+non terminal HeaderNode header_decl;
+non terminal AssertionNode assertion;
+
+/* ============================================================================
+ * SECTION 4: GRAMMAR RULES
+ * ============================================================================ */
+start with program;
+
+/* ----------------------------------------------------------------------------
+ * 4.1 PROGRAM STRUCTURE
+ * ---------------------------------------------------------------------------- */
+
+program ::= config_opt:c variables:v tests:t
+    {: 
+        ProgramNode prog = new ProgramNode();
+        if (c != null) prog.setConfig(c);
+        for (Object var : v) prog.addVariable((VariableNode) var);
+        for (Object test : t) prog.addTest((TestNode) test);
+        RESULT = prog;
+    :}
+    | config_opt:c variables:v
+    {:
+        System.err.println("ERROR: Missing test blocks\n   -> Every file must have at least one test block");
+        RESULT = new ProgramNode();
+    :}
+    ;
+
+/* ----------------------------------------------------------------------------
+ * 4.2 CONFIGURATION BLOCK
+ * ---------------------------------------------------------------------------- */
+config_opt ::= 
+    CONFIG LBRACE config_items:items RBRACE
+    {:
+        ConfigNode config = new ConfigNode();
+        for (Object item : items) {
+            if (item instanceof String) config.setBaseUrl((String) item);
+            else if (item instanceof HeaderNode) config.addHeader((HeaderNode) item);
+        }
+        RESULT = config;
+    :}
+    | /* empty */ {: RESULT = null; :}
+    ;
+
+config_items ::=
+    config_items:list BASE_URL EQUALS STRING:url SEMICOLON 
+    {: list.add(url); RESULT = list; :}
+    | config_items:list header_decl:h 
+    {: list.add(h); RESULT = list; :}
+    | /* empty */ {: RESULT = new ArrayList(); :}
+    ;
+
+/* ----------------------------------------------------------------------------
+ * 4.6 HEADER DECLARATIONS
+ * ---------------------------------------------------------------------------- */
+header_decl ::= 
+    HEADER STRING:key EQUALS STRING:val SEMICOLON 
+    {: RESULT = new HeaderNode(key, val); :}
+    | HEADER STRING:key EQUALS NUMBER:val SEMICOLON
+    {:
+        System.err.println("ERROR Line " + keyleft + ": Expected STRING after 'header \"" + key + "\" ='\n   -> Header values must be strings, not numbers\n   -> Found: " + val + "\n   -> Fix: header \"" + key + "\" = \"" + val + "\";");
+        RESULT = new HeaderNode(key, val.toString());
+    :}
+    ;
+
+/* ----------------------------------------------------------------------------
+ * 4.3 VARIABLE DECLARATIONS
+ * ---------------------------------------------------------------------------- */
+variables ::=
+    variables:list variable:v {: list.add(v); RESULT = list; :}
+    | /* empty */ {: RESULT = new ArrayList(); :}
+    ;
+
+variable ::= 
+    LET IDENTIFIER:name EQUALS value:val SEMICOLON 
+    {: RESULT = new VariableNode(name, val); :}
+    ;
+
+value ::= 
+    STRING:s {: RESULT = s; :} 
+    | NUMBER:n {: RESULT = n; :}
+    ;
+
+/* ----------------------------------------------------------------------------
+ * 4.4 TEST BLOCKS
+ * ---------------------------------------------------------------------------- */
+tests ::=
+    tests:list test_block:t {: list.add(t); RESULT = list; :}
+    | test_block:t 
+    {: 
+        List list = new ArrayList(); 
+        list.add(t); 
+        RESULT = list; 
+    :}
+    ;
+
+test_block ::= 
+    TEST IDENTIFIER:name LBRACE test_statements:stmts RBRACE
+    {:
+        TestNode test = new TestNode(name);
+        int requestCount = 0;
+        int assertionCount = 0;
+        
+        for (Object stmt : stmts) {
+            if (stmt instanceof RequestNode) {
+                test.addRequest((RequestNode) stmt);
+                requestCount++;
+            }
+            else if (stmt instanceof AssertionNode) {
+                test.addAssertion((AssertionNode) stmt);
+                assertionCount++;
+            }
+        }
+        
+        if (requestCount == 0) {
+            System.err.println("WARNING: Test '" + name + "' has no HTTP requests");
+        }
+        if (assertionCount < 2) {
+            System.err.println("WARNING: Test '" + name + "' needs at least 2 assertions (found " + assertionCount + ")");
+        }
+        
+        RESULT = test;
+    :}
+    ;
+
+test_statements ::=
+    test_statements:list test_statement:stmt {: list.add(stmt); RESULT = list; :}
+    | test_statement:stmt 
+    {: 
+        List list = new ArrayList(); 
+        list.add(stmt); 
+        RESULT = list; 
+    :}
+    ;
+
+test_statement ::= 
+    request:r {: RESULT = r; :} 
+    | assertion:a {: RESULT = a; :}
+    ;
+
+/* ----------------------------------------------------------------------------
+ * 4.5 HTTP REQUESTS
+ * ---------------------------------------------------------------------------- */
+request ::=
+    GET STRING:path SEMICOLON 
+    {: RESULT = new RequestNode(RequestNode.HttpMethod.GET, path); :}
+    | DELETE STRING:path SEMICOLON 
+    {: RESULT = new RequestNode(RequestNode.HttpMethod.DELETE, path); :}
+    | POST STRING:path request_block_opt:items
+    {:
+        RequestNode req = new RequestNode(RequestNode.HttpMethod.POST, path);
+        for (Object item : items) {
+            if (item instanceof HeaderNode) req.addHeader((HeaderNode) item);
+            else if (item instanceof String) req.setBody((String) item);
+        }
+        RESULT = req;
+    :}
+    | PUT STRING:path request_block_opt:items
+    {:
+        RequestNode req = new RequestNode(RequestNode.HttpMethod.PUT, path);
+        for (Object item : items) {
+            if (item instanceof HeaderNode) req.addHeader((HeaderNode) item);
+            else if (item instanceof String) req.setBody((String) item);
+        }
+        RESULT = req;
+    :}
+    ;
+
+request_block_opt ::= 
+    LBRACE request_items:items RBRACE {: RESULT = items; :} 
+    | /* empty */ {: RESULT = new ArrayList(); :}
+    ;
+
+request_items ::=
+    request_items:list request_item:item {: list.add(item); RESULT = list; :}
+    | /* empty */ {: RESULT = new ArrayList(); :}
+    ;
+
+request_item ::= 
+    header_decl:h {: RESULT = h; :} 
+    | BODY EQUALS STRING:s SEMICOLON {: RESULT = s; :}
+    | BODY EQUALS NUMBER:n SEMICOLON
+    {:
+        System.err.println("ERROR Line " + nleft + ": Expected STRING after 'body ='\n   -> Body must be a string, not a number\n   -> Found: " + n + "\n   -> Fix: body = \"" + n + "\";");
+        RESULT = n.toString();
+    :}
+    ;
+
+/* ----------------------------------------------------------------------------
+ * 4.7 ASSERTIONS
+ * ---------------------------------------------------------------------------- */
+assertion ::=
+    EXPECT STATUS EQUALS NUMBER:code SEMICOLON 
+    {: RESULT = new AssertionNode(AssertionNode.AssertionType.STATUS, code); :}
+    | EXPECT STATUS EQUALS STRING:code SEMICOLON
+    {:
+        System.err.println("ERROR Line " + codeleft + ": Expected NUMBER for status\n   -> Status must be an integer, not a string\n   -> Found: \"" + code + "\"\n   -> Fix: expect status = " + code + ";");
+        try {
+            RESULT = new AssertionNode(AssertionNode.AssertionType.STATUS, Integer.parseInt(code));
+        } catch (NumberFormatException e) {
+            RESULT = new AssertionNode(AssertionNode.AssertionType.STATUS, 200);
+        }
+    :}
+    | EXPECT HEADER STRING:key EQUALS STRING:val SEMICOLON 
+    {: RESULT = new AssertionNode(AssertionNode.AssertionType.HEADER_EQUALS, key, val); :}
+    | EXPECT HEADER STRING:key CONTAINS STRING:val SEMICOLON 
+    {: RESULT = new AssertionNode(AssertionNode.AssertionType.HEADER_CONTAINS, key, val); :}
+    | EXPECT BODY CONTAINS STRING:val SEMICOLON 
+    {: RESULT = new AssertionNode(AssertionNode.AssertionType.BODY_CONTAINS, val); :}
+    ;
