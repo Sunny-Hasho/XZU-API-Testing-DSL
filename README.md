@@ -17,7 +17,7 @@
 
 ## 🎯 **What is XZU?**
 
-XZU is an innovative **Domain-Specific Language (DSL)** that revolutionizes HTTP API testing by allowing you to write **declarative test specifications** that automatically compile into **executable JUnit 5 test classes**. 
+XZU is an advanced **Domain-Specific Language (DSL)** designed to transform HTTP API testing by enabling developers to write high-level, declarative test scripts that seamlessly compile into fully **executable JUnit 5 test cases**.
 
 ### **Why XZU?**
 - 🎨 **Declarative Syntax**: Write tests in plain English-like syntax
@@ -117,7 +117,74 @@ scripts\7-test-errors.bat
 *Demonstrates parser error detection for invalid syntax*
 *✅ All 4 error tests PASSED - Robust error detection confirmed*
 
+**What this script tests:**
+1. ❌ Invalid variable names (starts with digit: `2user`)
+2. ❌ Invalid body types (number instead of string)
+3. ❌ Invalid status types (string instead of integer)
+4. ❌ Missing semicolons in request bodies
+
+**Expected behavior:** The compiler should catch these errors and display helpful error messages with line/column information.
+
 **📖 For detailed error testing documentation, see: [`invalid-tests/ERROR_TESTING.md`](invalid-tests/ERROR_TESTING.md)**
+
+### **8. Run Complete Demo (All-in-One)**
+```cmd
+scripts\5-demo.bat
+```
+*This script demonstrates the complete workflow end-to-end: DSL compilation → JUnit generation → Backend server startup → Test execution*
+
+**What the demo does:**
+1. ✅ Builds the compiler
+2. ✅ Compiles `examples/example.test` to JUnit tests
+3. ✅ Starts the backend server (automatically)
+4. ✅ Runs the generated JUnit tests
+5. ✅ Displays success summary
+
+*Perfect for showcasing XZU's complete workflow in one command!*
+
+### **9. Test Multiline String Feature (Bonus)**
+Compile and run the multiline string example:
+
+```cmd
+scripts\3-compile-test.bat examples\multiline-string.test output\GeneratedTests.java
+```
+
+Start the server and run tests:
+```cmd
+scripts\6-start-server.bat
+```
+
+```cmd
+scripts\4-run-tests.bat output\GeneratedTests.java
+```
+
+**What this demonstrates:**
+- ✅ Triple-quoted multiline strings (""" syntax)
+- ✅ Clean JSON formatting in request bodies
+- ✅ Multiple POST/PUT requests with multiline bodies
+- ✅ Login and user update operations
+
+### **10. Test Range Status Feature (Bonus)**
+Compile and run the range status example:
+
+```cmd
+scripts\3-compile-test.bat examples\range-status.test output\GeneratedTests.java
+```
+
+Start the server and run tests:
+```cmd
+scripts\6-start-server.bat
+```
+
+```cmd
+scripts\4-run-tests.bat output\GeneratedTests.java
+```
+
+**What this demonstrates:**
+- ✅ Range status checks (`expect status in 200..299`)
+- ✅ Testing for any 2xx success status
+- ✅ Combining range and exact status checks
+- ✅ Comprehensive status validation
 
 ---
 
@@ -333,9 +400,13 @@ test TestSuccessRange {
   expect body contains "\"id\":42";
   expect body contains "\"username\":";
 }
-
-
 ```
+
+**📝 Try the bonus feature examples:**
+- `examples/multiline-string.test` - See multiline strings in action
+- `examples/range-status.test` - Test range status validation
+
+*Run them with: `scripts\3-compile-test.bat examples\<filename>.test output\GeneratedTests.java`*
 
 ---
 
@@ -354,9 +425,50 @@ test TestSuccessRange {
 | `2-build.bat` | Build compiler | `scripts\2-build.bat` |
 | `3-compile-test.bat` | Compile tests | `scripts\3-compile-test.bat input.test output.java` |
 | `4-run-tests.bat` | Execute tests | `scripts\4-run-tests.bat output\Tests.java` |
-| `5-demo.bat` | Show demo | `scripts\5-demo.bat` |
+| `5-demo.bat` | **Complete end-to-end demo** | `scripts\5-demo.bat` |
 | `6-start-server.bat` | Start server | `scripts\6-start-server.bat` |
 | `7-test-errors.bat` | Test error handling | `scripts\7-test-errors.bat` |
+
+### **🎬 About the Demo Script**
+The `5-demo.bat` script provides a complete, ready-to-run demonstration of XZU's full workflow:
+
+```cmd
+scripts\5-demo.bat
+```
+
+**Demo Workflow:**
+1. **Builds** the XZU compiler from scratch
+2. **Compiles** `examples/example.test` into JUnit tests
+3. **Starts** the Spring Boot backend server (auto-detects port)
+4. **Executes** the generated JUnit test suite
+5. **Reports** success/failure for all stages
+
+**Perfect for:**
+- 🎓 **Demonstrations**: Show XZU in action
+- ✅ **Testing**: Verify your environment works
+- 📚 **Learning**: See the complete pipeline
+- 🎯 **First-time users**: Get started quickly
+
+### **🧪 About the Error Testing Script**
+The `7-test-errors.bat` script validates XZU's error handling capabilities:
+
+```cmd
+scripts\7-test-errors.bat
+```
+
+**Error Test Cases:**
+1. **Invalid identifiers** - Variable names starting with digits (`2user`)
+2. **Type mismatches** - Number instead of string for request bodies
+3. **Type mismatches** - String instead of integer for status codes
+4. **Syntax errors** - Missing semicolons in request bodies
+
+**What it demonstrates:**
+- ✅ **Robust error detection** across multiple error types
+- 📍 **Helpful error messages** with line/column information
+- 🎯 **Parser validation** - Catches errors before code generation
+- 📝 **Clear diagnostics** - User-friendly error reporting
+
+**Validation:** All 4 error tests must be caught and reported correctly to prove compiler robustness.
 
 ### **Windows Troubleshooting**
 ```cmd
